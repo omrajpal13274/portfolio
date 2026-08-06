@@ -1,0 +1,46 @@
+{
+  "name": "omrajpal-portfolio",
+  "version": "1.0.0",
+  "description": "Horizontal-scroll portfolio for Om Rajpal. Next.js, GSAP, Sanity.",
+  "license": "MIT",
+  "author": "Om Rajpal",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/om13rajpal/portfolio.git"
+  },
+  "homepage": "https://omrajpal.in",
+  "private": true,
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gsap/react": "2.1.2",
+    "@sanity/orderable-document-list": "^2.0.18",
+    "gsap": "3.15.0",
+    "lenis": "1.3.26",
+    "next": "16.3.0",
+    "next-sanity": "^13.3.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "sanity": "^5.31.1",
+    "server-only": "^0.0.1",
+    "styled-components": "^6.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5.9"
+  }
+}

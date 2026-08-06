@@ -1,0 +1,406 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   The `wide` variant — the site's single source of truth for "render sideways"
+   ==========================================================================
+   Horizontal mode requires BOTH a wide viewport and permission to animate. It
+   must be one media query rather than a `lg:` / `motion-reduce:` pair, because
+   those have equal specificity and are resolved by their order in Tailwind's
+   output — which would leave reduced-motion desktop visitors with a huge track
+   inside an `overflow: hidden` frame that nothing was animating, and most of
+   the site unreachable.
+   ========================================================================== */
+@custom-variant wide (@media (min-width: 1024px) and (prefers-reduced-motion: no-preference));
+
+/* ==========================================================================
+   PUNK — design tokens
+
+   Paper white, near-black panels, and one hot red. The red is never a fill or
+   a text colour in the ordinary sense: it is spray paint, and it always sits
+   ON TOP of the artwork and the type rather than beside it. That single rule
+   is what separates this look from a generic monochrome site.
+   ========================================================================== */
+
+@theme {
+  --color-paper: #ffffff;
+  --color-ink: #0e0e0e;
+  --color-ink-soft: #1a1a1a;
+  --color-red: #f5003c;
+  --color-smoke: #8a8a8a;
+
+  --font-display: var(--font-inter), "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-display);
+  overscroll-behavior-x: none;
+}
+
+::selection {
+  background: var(--color-red);
+  color: var(--color-paper);
+}
+
+/* The scrollbar maps to sideways travel, not to content position, so it tells
+   the reader nothing. Hidden — but the element stays scrollable, so keyboard,
+   trackpad, and assistive tech all keep working. */
+html::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+html {
+  scrollbar-width: none;
+}
+
+/* ==========================================================================
+   Typography
+
+   Heavy grotesk, tight tracking, leading below 1. Headlines are deliberately
+   allowed to run past the viewport edge and crop — that confidence is a large
+   part of the reference's attitude, and centring everything would kill it.
+   ========================================================================== */
+
+.display {
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  line-height: 0.9;
+}
+
+.display-tight {
+  font-weight: 900;
+  letter-spacing: -0.045em;
+  line-height: 0.82;
+}
+
+.micro {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* ==========================================================================
+   Vertical wordmark
+
+   Written as a plain `transform` rather than Tailwind's `-rotate-90` on
+   purpose: that utility compiles to the independent CSS `rotate` property,
+   which GSAP neither reads nor writes. Keeping the angle in `transform` is
+   what lets the catalog-to-project traverse pick the wordmark up and un-rotate
+   it in flight.
+
+   The origin is the element's centre so the name can be positioned with plain
+   flex centring and slid aside on hover without the rotation fighting it.
+   ========================================================================== */
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .wordmark-rotated {
+    transform: rotate(-90deg);
+    /* Centre origin, so the rotated glyphs stay centred on the element's own
+       box and can be positioned with ordinary flex centring. The traverse is
+       unaffected: it rebuilds the clone from the source's bounding rect, which
+       is identical for a 90° turn whatever the origin was. */
+    transform-origin: center;
+  }
+}
+
+/* ==========================================================================
+   Work accordion
+
+   Columns share a FIXED total width and redistribute it between themselves on
+   hover. That constraint is the whole trick: animating each column's own width
+   would change the track's scrollWidth on every hover, and the pinned
+   ScrollTrigger caches that as its end distance — so the page length would
+   shift under the reader mid-scroll. Flex-grow ratios move the boundaries
+   without the total ever changing.
+   ========================================================================== */
+
+.work-strip {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .work-strip {
+    flex-direction: row;
+    width: var(--strip-width);
+  }
+
+  .work-col {
+    flex: 1 1 0%;
+    min-width: 0;
+    transition: flex-grow 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Everything recedes while any one column is under the pointer... */
+  .work-strip:hover .work-col {
+    flex-grow: 0.82;
+  }
+
+  /* ...and the one being read takes the space. `focus-within` matters as much
+     as `:hover` — keyboard users reach these columns by tabbing the link. */
+  .work-strip .work-col:hover,
+  .work-strip .work-col:focus-within {
+    flex-grow: 2.4;
+  }
+
+  /* At rest a column shows its name and nothing else. Everything other than
+     the name — index, detail, spray, illustration — is held at zero opacity
+     and arrives together on hover, so the collapsed strip reads as a rack of
+     spines rather than six competing compositions. */
+  .work-fade {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .work-col:hover .work-fade,
+  .work-col:focus-within .work-fade {
+    opacity: 1;
+    transition-delay: 0.2s;
+  }
+
+  /* The name is centred while collapsed and pinned to the left edge once the
+     column opens. Shifting it with padding on the centring flex box keeps the
+     rotation origin untouched — translating the rotated element itself moves
+     it along the rotated axis, which sends it up the column rather than across
+     it. 78% leaves the name's centre roughly 80px from the left edge at any
+     column width, which is what guarantees the detail never lands on top of
+     it. */
+  .work-name {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-right: 0;
+    transition: padding-right 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .work-col:hover .work-name,
+  .work-col:focus-within .work-name {
+    padding-right: 78%;
+  }
+
+  /* Width is fixed in vw rather than a percentage of the column. A percentage
+     resolves against the *collapsed* width — roughly 60px on a 1280px screen —
+     which reflowed the copy into an unreadable ribbon. A viewport-relative
+     width is stable through the expansion, and anchoring it to the right edge
+     puts it clear of the name on the left. */
+  .work-detail {
+    position: absolute;
+    top: 50%;
+    right: 2.5rem;
+    width: 24vw;
+    transform: translateY(-50%);
+  }
+}
+
+/* ==========================================================================
+   Micro-interactions
+
+   One vocabulary, applied everywhere, rather than a different flourish per
+   component. Everything here is transform/opacity only so it stays on the
+   compositor, and all of it is switched off by the reduced-motion block at the
+   foot of this file.
+   ========================================================================== */
+
+/* Links draw their underline from the left instead of switching one on. */
+.link-underline {
+  position: relative;
+}
+
+.link-underline::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -0.35em;
+  left: 0;
+  height: 2px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.link-underline:hover::after,
+.link-underline:focus-visible::after {
+  transform: scaleX(1);
+}
+
+/* A rule that extends toward the arrow it belongs to. */
+.rule-grow {
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.group:hover .rule-grow {
+  transform: scaleX(1.6);
+}
+
+/* Timeline entries lift, and the node they hang from goes red. */
+@media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+  .traj-entry {
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .traj-entry:hover {
+    transform: translateY(-8px);
+  }
+}
+
+/* The pin is line art taking `currentColor`, so hover moves the text colour
+   rather than a background. */
+.traj-entry .traj-node {
+  transition: color 0.3s ease;
+}
+
+.traj-entry:hover .traj-node {
+  color: var(--color-red);
+}
+
+/* The number is what an award is read by, so that is what responds. */
+.proof-item .metric {
+  transition: color 0.3s ease;
+}
+
+.proof-item:hover .metric {
+  color: var(--color-red);
+}
+
+/* The open-project target fills rather than merely underlining — it is the
+   only actionable thing in an open column and should look like it. */
+.open-cta {
+  position: relative;
+  overflow: hidden;
+  transition: color 0.35s ease;
+}
+
+/* The fill sits BEHIND the label rather than the label being lifted above it.
+   `.open-cta > *` only raises element children, and the label is a bare text
+   node — so it was being painted over by the red and never turned white. */
+.open-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-red);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.open-cta:hover,
+.open-cta:focus-visible {
+  color: var(--color-paper);
+  border-color: var(--color-red);
+}
+
+.open-cta:hover::before,
+.open-cta:focus-visible::before {
+  transform: scaleX(1);
+}
+
+.open-cta .open-arrow {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.open-cta:hover .open-arrow,
+.open-cta:focus-visible .open-arrow {
+  transform: translateX(6px);
+}
+
+/* Stack chips pick up the accent on hover. */
+.chip {
+  transition:
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+.chip:hover {
+  border-color: var(--color-red);
+  color: var(--color-red);
+}
+
+/* ==========================================================================
+   Hand-drawn "boil"
+
+   Traditional hand-drawn animation redraws each frame, so the lines never sit
+   still. Reproduced here by displacing the artwork with fractal noise and
+   stepping the noise seed a few times a second — one drawing, animated the way
+   a rough loop moves. Far lighter than shipping actual GIFs, and it means any
+   line art dropped into the site inherits the same motion.
+   ========================================================================== */
+
+.boil > * {
+  vector-effect: non-scaling-stroke;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boil {
+    filter: none !important;
+  }
+}
+
+/* ==========================================================================
+   Spray paint
+
+   Red marks are sprayed over the composition: soft-edged, speckled, and
+   slightly off-register, the way a real can behaves. Always above the content,
+   never behind it.
+   ========================================================================== */
+
+/* Blended paint was a mistake. `multiply` resolves red over black type to
+   black, so a mark crossing a headline went muddy exactly where it should
+   read loudest — the whole premise here is paint sitting ON the page, opaque,
+   the way a can actually behaves. No blend mode: the mark simply covers. */
+.spray {
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   Redaction — for defence-restricted and NDA'd work.
+   Sprayed out, not greyed out.
+   ========================================================================== */
+
+.struck {
+  position: relative;
+  display: inline-block;
+}
+
+.struck::after {
+  content: "";
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  top: 45%;
+  height: 0.22em;
+  background: var(--color-red);
+  transform: rotate(-1.4deg);
+  filter: url(#spray-edge);
+}
+
+/* ==========================================================================
+   Reduced motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
