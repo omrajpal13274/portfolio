@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Doodle } from "@/components/Doodle";
 import { Spray } from "@/components/Spray";
@@ -14,6 +15,15 @@ import { SprayDefs } from "@/components/SprayDefs";
  * project is the realistic way to arrive here, so the copy says what happened
  * and offers the catalogue rather than only announcing the code.
  */
+// Without this the page inherits the root layout's title and a dead URL reads
+// as the homepage in the tab and in search results. noindex because a 404 that
+// returns readable prose is exactly the kind of page a crawler will otherwise
+// keep.
+export const metadata: Metadata = {
+  title: "Page not found",
+  robots: { index: false, follow: true },
+};
+
 export default function NotFound() {
   return (
     <>

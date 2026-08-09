@@ -111,12 +111,8 @@ export function Intro({ name, role }: { name: string; role: string }) {
           },
           0,
         )
-        .fromTo(
-          ".intro-can [data-fill]",
-          { autoAlpha: 0, scale: 0.7, transformOrigin: "center" },
-          { autoAlpha: 1, scale: 1, duration: 0.3, stagger: 0.06 },
-          0.5,
-        )
+        // No [data-fill] pass here: the can is drawn entirely in line, and its
+        // one solid area is the paint, which the flood rect animates instead.
         .from(
           ".intro-count",
           { yPercent: 26, autoAlpha: 0, duration: 0.7, ease: "power4.out" },

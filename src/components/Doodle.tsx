@@ -257,25 +257,34 @@ export function Doodle({
       const lines = root.querySelectorAll("[data-line]");
       const fills = root.querySelectorAll("[data-fill]");
 
+      // Guarded, because most of these drawings are pure line and carry no
+      // fills at all. GSAP warns on an empty target rather than no-opping, so
+      // an unguarded tween prints "GSAP target not found" for every such
+      // doodle on the page.
       if (prefersReducedMotion()) {
-        gsap.set(lines, { drawSVG: "100%" });
-        gsap.set(fills, { autoAlpha: 1 });
+        if (lines.length) gsap.set(lines, { drawSVG: "100%" });
+        if (fills.length) gsap.set(fills, { autoAlpha: 1 });
         return;
       }
 
       const tl = gsap.timeline();
 
-      tl.fromTo(
-        lines,
-        { drawSVG: "0%" },
-        { drawSVG: "100%", duration: 0.7, stagger: 0.045, ease: "power2.inOut" },
-        0,
-      ).fromTo(
-        fills,
-        { autoAlpha: 0, scale: 0.6, transformOrigin: "center" },
-        { autoAlpha: 1, scale: 1, duration: 0.3, stagger: 0.05, ease: "back.out(2)" },
-        0.3,
-      );
+      if (lines.length) {
+        tl.fromTo(
+          lines,
+          { drawSVG: "0%" },
+          { drawSVG: "100%", duration: 0.7, stagger: 0.045, ease: "power2.inOut" },
+          0,
+        );
+      }
+      if (fills.length) {
+        tl.fromTo(
+          fills,
+          { autoAlpha: 0, scale: 0.6, transformOrigin: "center" },
+          { autoAlpha: 1, scale: 1, duration: 0.3, stagger: 0.05, ease: "back.out(2)" },
+          0.3,
+        );
+      }
     },
     { scope: ref, dependencies: [seen, kind, animate] },
   );
