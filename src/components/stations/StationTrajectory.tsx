@@ -180,6 +180,12 @@ export function StationTrajectory({
       drawnSpan = full;
       svg.setAttribute("viewBox", `0 0 ${full} ${WAVE_HEIGHT}`);
       svg.style.width = `${full}px`;
+      // Pinned in pixels alongside the width, because the class that sizes this
+      // box is `h-24` — six rem, which is only WAVE_HEIGHT while the root font
+      // size is the default 16px. A visitor browsing at a larger or smaller
+      // base font size got a box whose height disagreed with the viewBox, and
+      // the vertical scale went with it.
+      svg.style.height = `${WAVE_HEIGHT}px`;
       path.setAttribute("d", wavePath(experience.length + 1, span));
     };
 
@@ -198,6 +204,11 @@ export function StationTrajectory({
       // firing `resize`, and a stale viewBox breaks the 1:1 scale that makes
       // arc length mean pixels. It also covers the first paint, where the
       // mount-time call can measure zero and bail.
+      // Nothing to draw against while the list has no width — the panel is
+      // display:none below the breakpoint, and measuring it there would push a
+      // degenerate geometry through the plugin.
+      if (!rect.width) return;
+
       const cut = rect.width * (1 + 1 / experience.length);
       if (!drawnSpan || Math.abs(cut - drawnSpan) > 0.5) layout();
       if (!drawnSpan) return;
@@ -282,13 +293,24 @@ export function StationTrajectory({
               preserveAspectRatio="none"
               className="pointer-events-none absolute -top-12 left-0 hidden h-24 w-full overflow-visible wide:block"
             >
+              {/* No `vector-effect: non-scaling-stroke` here, deliberately.
+                  With it, the dash pattern is generated in screen space, so
+                  DrawSVG has to multiply its measured length by the element's
+                  screen CTM scale — and it writes `stroke-dasharray` as
+                  `drawn, measured - drawn`. Any reading other than 1:1 makes
+                  that pair sum to less than the real path, and a dash pattern
+                  shorter than the path it is painted on *repeats*: the line
+                  came out as a drawn run, a gap, then a second run, instead of
+                  one line. Without the attribute the length is the path's own
+                  arc length and the dasharray is in the same user units, so the
+                  two agree by construction at any scale. The box is kept 1:1
+                  anyway, so the stroke renders identically. */}
               <path
                 ref={wave}
                 fill="none"
                 stroke="var(--color-red)"
                 strokeWidth={6}
                 strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
               />
             </svg>
 
