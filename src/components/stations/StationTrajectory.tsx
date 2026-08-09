@@ -35,6 +35,15 @@ const WAVE_HEIGHT = 96;
 const WAVE_MID = WAVE_HEIGHT / 2;
 const WAVE_AMP = 34;
 
+/**
+ * Where the drawing tip sits on screen, as a fraction of the viewport, for as
+ * long as the list is crossing it. A little right of centre: the line reaches
+ * each pin just before that entry settles into the position you read it in, so
+ * it stays ahead of you without ever being so far ahead that it has already
+ * finished under everything visible.
+ */
+const TIP_ANCHOR = 0.62;
+
 function wavePath(segments: number, span: number): string {
   let d = `M 0 ${WAVE_MID}`;
   for (let i = 0; i < segments; i += 1) {
@@ -151,6 +160,12 @@ export function StationTrajectory({
     }
 
     const svg = path.ownerSVGElement;
+
+    // The x-span the path covers, in pixels — the list's width plus the extra
+    // half-period. Held from the last cut so `update` measures progress against
+    // the geometry that is actually on screen.
+    let drawnSpan = 0;
+
     /**
      * Re-cuts the path to the list's real width so the scale stays 1:1, plus
      * one extra half-period past the end. The panel clips that tail, so the
@@ -159,34 +174,54 @@ export function StationTrajectory({
      */
     const layout = () => {
       const width = el.getBoundingClientRect().width;
-      if (!width || !svg) return;
+      if (!width || !svg || !experience.length) return;
       const span = width / experience.length;
       const full = width + span;
+      drawnSpan = full;
       svg.setAttribute("viewBox", `0 0 ${full} ${WAVE_HEIGHT}`);
       svg.style.width = `${full}px`;
       path.setAttribute("d", wavePath(experience.length + 1, span));
     };
 
+    // The `wide` variant verbatim, rather than an `innerWidth` comparison that
+    // counts the scrollbar differently and so can disagree with the CSS by a
+    // few pixels either side of the breakpoint.
+    const wide = window.matchMedia(
+      "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
+    );
+
     const update = () => {
       const rect = el.getBoundingClientRect();
-      const horizontal = window.innerWidth >= 1024;
 
-      // 0 as the list enters the viewport, 1 once it has fully crossed it.
-      const travelled = horizontal
-        ? window.innerWidth - rect.left
-        : window.innerHeight - rect.top;
-      const distance = horizontal
-        ? window.innerWidth + rect.width
-        : window.innerHeight + rect.height;
+      // Re-cut if the list has been re-laid out under us. A font swap, a page
+      // zoom, or the breakpoint flipping all change its width without reliably
+      // firing `resize`, and a stale viewBox breaks the 1:1 scale that makes
+      // arc length mean pixels. It also covers the first paint, where the
+      // mount-time call can measure zero and bail.
+      const cut = rect.width * (1 + 1 / experience.length);
+      if (!drawnSpan || Math.abs(cut - drawnSpan) > 0.5) layout();
+      if (!drawnSpan) return;
 
-      // Mapped across the list's whole crossing: 0 as its leading edge enters,
-      // 1 as its trailing edge leaves. An earlier 1.85x multiplier finished the
-      // line at 82% before the list had even reached the left of the viewport,
-      // so it was already complete for almost the entire time it was readable —
-      // which looked like it was not animating at all. The small margin over 1
-      // only stops it finishing exactly on the last pixel.
-      const raw = distance > 0 ? travelled / distance : 0;
-      const progress = Math.max(0, Math.min(1, raw * 1.12));
+      /**
+       * The tip is drawn to a fixed point on the screen, not to a fraction of
+       * the list's crossing. Normalising by a distance containing the viewport
+       * width — as this did — makes the thread advance at
+       * `(listWidth + span) / (viewportWidth + listWidth)` pixels per pixel of
+       * list travel, a rate that is never 1 and changes with the screen. The
+       * tip therefore slid forward through the entries, and how far it slid
+       * depended on the window: on a 1920 screen the last entry was threaded as
+       * it reached the centre, on a 13-inch laptop at 68% across, so the last
+       * two entries arrived already drawn and scrolling did nothing under them.
+       *
+       * Measuring how far the list has pushed past a fixed anchor makes the
+       * rate exactly 1 by construction, so every entry is threaded at the same
+       * point in its journey across the screen at every viewport size.
+       */
+      const raw = wide.matches
+        ? (window.innerWidth * TIP_ANCHOR - rect.left) / drawnSpan
+        : (window.innerHeight * TIP_ANCHOR - rect.top) / (rect.height || 1);
+
+      const progress = Math.max(0, Math.min(1, raw));
 
       gsap.set(path, { drawSVG: `0% ${(progress * 100).toFixed(2)}%` });
     };

@@ -10,6 +10,24 @@ export interface TrackPosition {
 }
 
 /**
+ * The `wide` variant from globals.css, expressed for JavaScript.
+ *
+ * Everywhere that decides "is this rendering sideways?" has to ask the same
+ * way. A `window.innerWidth >= 1024` comparison is not the same test as a
+ * `min-width: 1024px` media query — the query counts the classic scrollbar and
+ * the property does not — so the two can disagree either side of the
+ * breakpoint, leaving the code driving the layout in a different mode from the
+ * layout itself.
+ *
+ * STACKED is the exact negation rather than `max-width: 1023px`. Browser zoom
+ * produces fractional viewport widths, and at 1023.5px neither of those two
+ * queries matched, so the page briefly had no position indicator at all.
+ */
+const WIDE = "(min-width: 1024px)";
+const MOTION = "(prefers-reduced-motion: no-preference)";
+const STACKED = `not all and ${WIDE}, (prefers-reduced-motion: reduce)`;
+
+/**
  * The horizontal scroll mechanic.
  *
  * A viewport-height wrapper is pinned while the track inside it translates on
@@ -76,7 +94,7 @@ export function HorizontalTrack({
         });
 
         const horizontal =
-          window.innerWidth >= 1024 && !prefersReducedMotion();
+          window.matchMedia(WIDE).matches && !prefersReducedMotion();
 
         let index = 0;
         if (horizontal) {
@@ -105,10 +123,7 @@ export function HorizontalTrack({
       const mm = gsap.matchMedia();
 
       mm.add(
-        {
-          desktop: "(min-width: 1024px)",
-          motion: "(prefers-reduced-motion: no-preference)",
-        },
+        { desktop: WIDE, motion: MOTION },
         (context) => {
           const { desktop, motion } = context.conditions as {
             desktop: boolean;
@@ -148,7 +163,7 @@ export function HorizontalTrack({
       // document scroll directly. Reduced-motion desktop visitors still see a
       // working position indicator this way.
       mm.add(
-        "(max-width: 1023px), (prefers-reduced-motion: reduce)",
+        STACKED,
         () => {
           const onScroll = () => {
             const max =
